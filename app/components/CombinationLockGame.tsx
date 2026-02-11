@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { generateSecretCode, isValidGuess, calculateFeedback, type GuessResult } from '../utils/gameLogic';
+import { hasWonToday, setDailyWin } from '../utils/cookies';
 
 const MAX_ATTEMPTS = 4;
 
@@ -10,7 +11,7 @@ interface Attempt {
   result: GuessResult;
 }
 
-type GameStatus = 'playing' | 'won' | 'lost';
+type GameStatus = 'playing' | 'won' | 'lost' | 'already_won';
 
 export default function CombinationLockGame() {
   const [secretCode, setSecretCode] = useState<string>('');
@@ -19,9 +20,13 @@ export default function CombinationLockGame() {
   const [gameStatus, setGameStatus] = useState<GameStatus>('playing');
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Initialize game on mount
+  // Check if user has already won today on mount
   useEffect(() => {
-    startNewGame();
+    if (hasWonToday()) {
+      setGameStatus('already_won');
+    } else {
+      startNewGame();
+    }
   }, []);
 
   // Focus first input when game starts or resets
@@ -32,6 +37,12 @@ export default function CombinationLockGame() {
   }, [gameStatus]);
 
   function startNewGame() {
+    // Don't start if already won today
+    if (hasWonToday()) {
+      setGameStatus('already_won');
+      return;
+    }
+    
     setSecretCode(generateSecretCode());
     setDigits(['', '', '']);
     setAttempts([]);
@@ -40,6 +51,12 @@ export default function CombinationLockGame() {
   }
 
   function handleSubmit() {
+    // Safety check: don't allow submission if already won today
+    if (hasWonToday()) {
+      setGameStatus('already_won');
+      return;
+    }
+    
     const currentGuess = digits.join('');
     
     if (!isValidGuess(currentGuess)) {
@@ -54,6 +71,7 @@ export default function CombinationLockGame() {
 
     if (result.isCorrect) {
       setGameStatus('won');
+      setDailyWin(); // Mark that user won today
     } else if (attempts.length + 1 >= MAX_ATTEMPTS) {
       setGameStatus('lost');
     } else {
@@ -131,25 +149,38 @@ export default function CombinationLockGame() {
           </div>
         )}
 
-        {/* Attempts Display */}
-        <div className="mb-6 space-y-3">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-            Attempts: {attempts.length}/{MAX_ATTEMPTS} • Remaining: {remainingAttempts}
+        {gameStatus === 'already_won' && (
+          <div className="mb-6 p-4 bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 rounded-lg text-center">
+            <p className="text-blue-800 dark:text-blue-200 font-semibold text-lg mb-2">
+              🏆 You already won today!
+            </p>
+            <p className="text-blue-700 dark:text-blue-300 text-sm">
+              Come back tomorrow for a new challenge!
+            </p>
           </div>
-          
-          {attempts.map((attempt, index) => (
-            <AttemptRow key={index} attempt={attempt} />
-          ))}
-        </div>
+        )}
+
+        {/* Attempts Display */}
+        {gameStatus !== 'already_won' && (
+          <div className="mb-6 space-y-3">
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              Attempts: {attempts.length}/{MAX_ATTEMPTS} • Remaining: {remainingAttempts}
+            </div>
+            
+            {attempts.map((attempt, index) => (
+              <AttemptRow key={index} attempt={attempt} />
+            ))}
+          </div>
+        )}
 
         {/* Input Blocks */}
-        {gameStatus === 'playing' && (
+        {gameStatus === 'playing' && !hasWonToday() && (
           <div className="space-y-4">
             <div className="flex gap-2 sm:gap-3 justify-center">
               {[0, 1, 2].map((index) => (
                 <input
                   key={index}
-                  ref={(el) => (inputRefs.current[index] = el)}
+                  ref={(el) => { inputRefs.current[index] = el; }}
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -172,13 +203,24 @@ export default function CombinationLockGame() {
         )}
 
         {/* New Game Button */}
-        {(gameStatus === 'won' || gameStatus === 'lost') && (
+        {gameStatus === 'lost' && (
           <button
             onClick={startNewGame}
             className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors mt-4"
           >
-            Play Again
+            Try Again
           </button>
+        )}
+
+        {gameStatus === 'won' && (
+          <div className="mt-4 text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+              You've completed today's challenge!
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-500">
+              Come back tomorrow for a new code to crack
+            </p>
+          </div>
         )}
       </div>
     </div>
