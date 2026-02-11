@@ -20,10 +20,15 @@ export default function CombinationLockGame() {
   const [gameStatus, setGameStatus] = useState<GameStatus>('playing');
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Check if user has already won today on mount
+  // Check if user has already won today on mount (client-side only)
   useEffect(() => {
-    if (hasWonToday()) {
-      setGameStatus('already_won');
+    // Only check cookies on client side
+    if (typeof window !== 'undefined') {
+      if (hasWonToday()) {
+        setGameStatus('already_won');
+      } else {
+        startNewGame();
+      }
     } else {
       startNewGame();
     }

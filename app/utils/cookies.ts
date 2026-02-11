@@ -18,6 +18,7 @@ function getTodayDateString(): string {
  * Set a cookie with expiration
  */
 function setCookie(name: string, value: string, days: number): void {
+  if (typeof document === 'undefined') return;
   const expires = new Date();
   expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
   document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
@@ -27,6 +28,7 @@ function setCookie(name: string, value: string, days: number): void {
  * Get a cookie value by name
  */
 function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
   const nameEQ = name + '=';
   const ca = document.cookie.split(';');
   for (let i = 0; i < ca.length; i++) {
@@ -60,5 +62,6 @@ export function setDailyWin(): void {
  * Clear the daily win cookie (for testing or reset)
  */
 export function clearDailyWin(): void {
+  if (typeof document === 'undefined') return;
   document.cookie = `${COOKIE_NAME}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
 }
