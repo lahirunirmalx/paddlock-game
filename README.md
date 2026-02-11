@@ -1,4 +1,20 @@
+# paddlock-game
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Combination Lock Game
+
+A fun 3-digit combination lock guessing game built with Next.js. Try to crack the code in 4 attempts!
+
+### Features
+- 3-digit secret code (000-999)
+- 4 attempts to guess
+- Color-coded feedback:
+  - 🟢 Green: Correct digit in correct position
+  - 🟡 Yellow: Correct digit in wrong position
+  - ⚪ Gray: Digit not in code
+- Modern, mobile-responsive UI
+- Auto-submit on last digit entry
 
 ## Getting Started
 
