@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { generateSecretCode, isValidGuess, calculateFeedback, type GuessResult } from '../utils/gameLogic';
 import { hasWonToday, setDailyWin } from '../utils/cookies';
 
@@ -55,9 +55,9 @@ export default function CombinationLockGame() {
     inputRefs.current = [null, null, null];
   }
 
-  function handleSubmit() {
+  const handleSubmit = useCallback(() => {
     // Safety check: don't allow submission if already won today
-    if (hasWonToday()) {
+    if (typeof window !== 'undefined' && hasWonToday()) {
       setGameStatus('already_won');
       return;
     }
@@ -71,19 +71,41 @@ export default function CombinationLockGame() {
     const result = calculateFeedback(currentGuess, secretCode);
     const newAttempt: Attempt = { guess: currentGuess, result };
 
-    setAttempts(prev => [...prev, newAttempt]);
+    setAttempts(prev => {
+      const newAttempts = [...prev, newAttempt];
+      
+      if (result.isCorrect) {
+        setGameStatus('won');
+        setDailyWin(); // Mark that user won today
+      } else if (newAttempts.length >= MAX_ATTEMPTS) {
+        setGameStatus('lost');
+      } else {
+        // Focus first input for next attempt
+        setTimeout(() => inputRefs.current[0]?.focus(), 100);
+      }
+      
+      return newAttempts;
+    });
     setDigits(['', '', '']);
+  }, [digits, secretCode]);
 
-    if (result.isCorrect) {
-      setGameStatus('won');
-      setDailyWin(); // Mark that user won today
-    } else if (attempts.length + 1 >= MAX_ATTEMPTS) {
-      setGameStatus('lost');
-    } else {
-      // Focus first input for next attempt
-      setTimeout(() => inputRefs.current[0]?.focus(), 100);
+  // Auto-submit when all 3 digits are filled (more reliable for mobile)
+  useEffect(() => {
+    if (gameStatus !== 'playing') return;
+    if (typeof window === 'undefined' || hasWonToday()) return;
+    
+    const allFilled = digits.every(d => d !== '');
+    if (allFilled && digits.length === 3) {
+      const guess = digits.join('');
+      if (isValidGuess(guess)) {
+        // Small delay to ensure state is settled, especially on mobile
+        const timer = setTimeout(() => {
+          handleSubmit();
+        }, 200);
+        return () => clearTimeout(timer);
+      }
     }
-  }
+  }, [digits, gameStatus, handleSubmit]);
 
   function handleDigitChange(index: number, value: string) {
     // Only allow single digit
@@ -93,17 +115,11 @@ export default function CombinationLockGame() {
     newDigits[index] = digit;
     setDigits(newDigits);
 
-    // Auto-focus next input if digit entered
+    // Auto-focus next input if digit entered (with delay for mobile)
     if (digit && index < 2) {
-      inputRefs.current[index + 1]?.focus();
-    }
-
-    // Auto-submit if last digit entered
-    if (digit && index === 2) {
-      const guess = [...newDigits.slice(0, 2), digit].join('');
-      if (isValidGuess(guess)) {
-        setTimeout(() => handleSubmit(), 50);
-      }
+      setTimeout(() => {
+        inputRefs.current[index + 1]?.focus();
+      }, 50);
     }
   }
 
@@ -191,6 +207,7 @@ export default function CombinationLockGame() {
                   pattern="[0-9]*"
                   value={digits[index]}
                   onChange={(e) => handleDigitChange(index, e.target.value)}
+                  onInput={(e) => handleDigitChange(index, (e.target as HTMLInputElement).value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   className={`
                     w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-lg 
